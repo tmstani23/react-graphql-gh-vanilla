@@ -4,11 +4,24 @@ import React, { Component } from 'react';
 import axios from 'axios';
 
 const TITLE = 'React GraphQL GitHub Client';
-const GET_ORGANIZATION = `
+const getIssuesOfRepositoryQuery = (organization, repository) => `
   {
-    organization(login: "the-road-to-learn-react") {
+    organization(login: "${organization}") {
       name
       url
+      repository(name: "${repository}") {
+        name
+        url
+        issues(last: 5) {
+          edges {
+            node {
+              id
+              title
+              url
+            }
+          }
+        }
+      }
     }
   }
 `;
@@ -38,9 +51,26 @@ const Organization = ({organization, errors}) => {
       <strong>Issues from Organization: </strong>
       <a href={organization.url}> {organization.name} </a>
     </p>
+    <Repository repository={organization.repository} />
   </div>
   );
 }
+
+const Repository = ({repository}) => (
+  <div> 
+    <p>
+      <strong> In Repository:</strong>  
+      <a href={repository.url} > {repository.name} </a>
+    </p>
+    <ul>
+      {repository.issues.edges.map((issue) => (
+        <li key={issue.node.id}>  
+          <a href={issue.node.url}>{issue.node.title}</a>
+        </li>
+      ))}
+    </ul>
+  </div>
+)
 
 class App extends Component {
   state = {
@@ -52,20 +82,23 @@ class App extends Component {
   componentDidMount() {
     //fetch data
     
-    this.onFetchFromGitHub();
+    this.onFetchFromGitHub(this.state.path);
   };
   onChange = event => {
     this.setState({ path: event.target.value })
   };
   onSubmit = event => {
     //fetch data
+    this.onFetchFromGitHub(this.state.path);
 
     event.preventDefault();
   };
-  onFetchFromGitHub = () => {
+  onFetchFromGitHub = path => {
     //console.log(process.env.REACT_APP_GITHUB_PERSONAL_ACCESS_TOKEN);
+    //The path is split at the "/" and everything before sign is saved as the organization variable and after saved as the repository variable
+    const [organization, repository] = path.split('/');
     axiosGitHubGraphQL
-      .post('', { query: GET_ORGANIZATION})
+      .post('', { query: getIssuesOfRepositoryQuery(organization, repository)})
       .then(result => this.setState( () => ({
         organization: result.data.data.organization,
         errors: result.data.errors,
