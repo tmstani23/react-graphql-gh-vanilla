@@ -13,12 +13,25 @@ const GET_ISSUES_OF_REPOSITORY = `
       repository(name: $repository) {
         name
         url
+        licenseInfo{
+          name
+          description
+          id
+        }
         issues(last: 5) {
           edges {
             node {
               id
               title
               url
+            }
+          }
+        }
+        pullRequests(last: 5) {
+          edges {
+            node {
+              title
+              id
             }
           }
         }
@@ -37,7 +50,7 @@ const Organization = ({organization, errors}) => {
       </p>
     )
   }
-  
+  //console.log(organization.repository)
   return (
   <div>
     <p>
@@ -45,11 +58,21 @@ const Organization = ({organization, errors}) => {
       <a href={organization.url}> {organization.name} </a>
     </p>
     <Repository repository={organization.repository} />
+    
   </div>
   );
 }
 //Displays the repository name and a link to the repository
-const Repository = ({repository}) => (
+const Repository = ({repository}) => {
+  if (repository.licenseInfo) {
+    return (
+      <p>
+        <strong> Licenses:</strong> 
+      <p>{repository.licenseInfo.name}</p> 
+    </p>
+    )
+  }
+  return (
   <div> 
     <p>
       <strong> In Repository:</strong>  
@@ -64,8 +87,12 @@ const Repository = ({repository}) => (
         </li>
       ))}
     </ul>
+    
+   
+    
   </div>
-)
+  )
+}
 //An axios http request object is created which includes the github api endpoint
         //and the requester's github authorization token
 const axiosGitHubGraphQL = axios.create({
