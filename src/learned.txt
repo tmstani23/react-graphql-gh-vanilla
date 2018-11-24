@@ -1,0 +1,11 @@
+Destructuring:
+    This is called a "destructuring". Actually, you're passing an object as an argument to the function, but the destructuring uses only the named properties of the object.
+
+    const destructuring = ({ used }) => console.log(used);
+        
+    const properties = {
+    unused: 1,
+    used: 2,
+    };
+
+    destructuring(properties); // 2

@@ -16,7 +16,6 @@ const GET_ISSUES_OF_REPOSITORY = `
         licenseInfo{
           name
           description
-          id
         }
         issues(last: 5) {
           edges {
@@ -24,14 +23,14 @@ const GET_ISSUES_OF_REPOSITORY = `
               id
               title
               url
-            }
-          }
-        }
-        pullRequests(last: 5) {
-          edges {
-            node {
-              title
-              id
+              comments(last: 5) {
+                edges {
+                  node {
+                    id
+                    body
+                  }
+                }
+              }
             }
           }
         }
@@ -41,6 +40,7 @@ const GET_ISSUES_OF_REPOSITORY = `
 `;
 //Component that displays the errors if any or returns
   //the organization name and url.  A repository component is also displayed
+  //note: the organization/errors arguments are objects and are destructured giving access to properties when passing into the component
 const Organization = ({organization, errors}) => {
   if (errors) {
     return (
@@ -50,7 +50,6 @@ const Organization = ({organization, errors}) => {
       </p>
     )
   }
-  //console.log(organization.repository)
   return (
   <div>
     <p>
@@ -58,41 +57,69 @@ const Organization = ({organization, errors}) => {
       <a href={organization.url}> {organization.name} </a>
     </p>
     <Repository repository={organization.repository} />
-    
   </div>
   );
 }
 //Displays the repository name and a link to the repository
 const Repository = ({repository}) => {
+  //Display license info if available in the repository data object
   if (repository.licenseInfo) {
     return (
-      <p>
-        <strong> Licenses:</strong> 
-      <p>{repository.licenseInfo.name}</p> 
-    </p>
+      <div>
+        
+          <strong> Licenses:</strong> 
+          <p>{repository.licenseInfo.name}</p>
+          <p>{repository.licenseInfo.description}</p>
+        
+        <Issues repository = {repository} />
+      </div>
     )
   }
+  if (repository)
   return (
-  <div> 
-    <p>
-      <strong> In Repository:</strong>  
-      <a href={repository.url} > {repository.name} </a>
-    </p>
-    {/* each of the first five issues in the repo are mapped as list elements */}
-    <ul>
-      {repository.issues.edges.map((issue) => (
-        <li key={issue.node.id}>  
-          {/* links containing the issue title and url are displayed */}
-          <a href={issue.node.url}>{issue.node.title}</a>
-        </li>
-      ))}
-    </ul>
-    
-   
-    
-  </div>
+    <Issues repository = {repository} />
   )
 }
+const Issues = ({repository}) => {
+  return (
+    // A link to the repository is displayed
+    <div>
+      <p>
+        <strong> In Repository:</strong>  
+        <a href={repository.url} > {repository.name} </a>
+      </p>
+    {/* each of the first five issues in the repo are mapped as list elements */}
+      <ul>
+        {repository.issues.edges.map((issue) => (
+          <li key={issue.node.id}>  
+            {/* links containing the issue title and url are displayed */}
+            <a href={issue.node.url}>{issue.node.title}</a>
+            <HasComment comment={issue.node.comments} />
+            <ul>
+              {/* For each issue map through the first 5 comments */}
+              {issue.node.comments.edges.map((comment) => (
+                // Display each comment body as a list element
+                <li key={comment.node.id}>
+                  <p>{comment.node.body}</p>
+                </li>
+              ))}
+            </ul>
+            {/* {console.log(issue.node.comments)} */}
+          </li>
+      ))}
+      </ul> 
+    </div>
+  )
+}
+//This component checks if there are comments available
+const HasComment = ({comment}) => {
+  //If there are comments display a comment message
+  return !comment.edges.length == 0 
+    ? ( <div>
+        <strong>Comments:</strong>  
+      </div> )
+    : null; 
+};
 //An axios http request object is created which includes the github api endpoint
         //and the requester's github authorization token
 const axiosGitHubGraphQL = axios.create({
