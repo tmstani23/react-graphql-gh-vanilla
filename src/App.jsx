@@ -4,9 +4,9 @@ import React, { Component } from 'react';
 import axios from 'axios';
 
 const TITLE = 'React GraphQL GitHub Client';
-//Graphql query to the github api
+
 const GET_ISSUES_OF_REPOSITORY = `
-  query ($organization: String!, $repository: String!) {
+  query ($organization: String!, $repository: String!, $cursor: String) {
     organization(login: $organization) {
       name
       url
@@ -17,12 +17,20 @@ const GET_ISSUES_OF_REPOSITORY = `
           name
           description
         }
-        issues(last: 5) {
+        issues(first: 5, after: $cursor, states: [OPEN]) {
           edges {
             node {
               id
               title
               url
+              reactions(last: 3) {
+                edges {
+                  node {
+                    id
+                    content
+                  }
+                }
+              }
               comments(last: 5) {
                 edges {
                   node {
@@ -33,6 +41,11 @@ const GET_ISSUES_OF_REPOSITORY = `
               }
             }
           }
+          totalCount
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
         }
       }
     }
@@ -41,7 +54,11 @@ const GET_ISSUES_OF_REPOSITORY = `
 //Component that displays the errors if any or returns
   //the organization name and url.  A repository component is also displayed
   //note: the organization/errors arguments are objects and are destructured giving access to properties when passing into the component
-const Organization = ({organization, errors}) => {
+const Organization = ({
+  organization,
+  errors,
+  onFetchMoreIssues,
+}) => {
   if (errors) {
     return (
       <p>
@@ -53,15 +70,16 @@ const Organization = ({organization, errors}) => {
   return (
   <div>
     <p>
-      <strong>Issues from Organization: </strong>
+      <strong>Organization: </strong>
       <a href={organization.url}> {organization.name} </a>
     </p>
-    <Repository repository={organization.repository} />
+    <Repository repository={organization.repository} onFetchMoreIssues={onFetchMoreIssues} />
   </div>
   );
 }
-//Displays the repository name and a link to the repository
-const Repository = ({repository}) => {
+ 
+
+const Licenses = ({repository}) => {
   //Display license info if available in the repository data object
   if (repository.licenseInfo) {
     return (
@@ -70,16 +88,36 @@ const Repository = ({repository}) => {
           <strong> Licenses:</strong> 
           <p>{repository.licenseInfo.name}</p>
           <p>{repository.licenseInfo.description}</p>
-        
-        <Issues repository = {repository} />
+          <strong>Issues from Organization: </strong>
+          <Issues repository = {repository} />
       </div>
     )
   }
   if (repository)
   return (
-    <Issues repository = {repository} />
+    <div>
+      <strong>Issues from Organization: </strong>
+      <Issues repository = {repository} />
+    </div>
+    
   )
 }
+
+//Displays the repository name and a link to the repository
+const Repository = ({
+  repository,
+  onFetchMoreIssues,
+}) => (
+  <div>
+    <Licenses repository={repository}/>
+    <hr />
+    {repository.issues.pageInfo.hasNextPage && (
+      <button onClick={onFetchMoreIssues}>More</button>
+    )}
+    
+  </div>
+)
+//A component to display the issues within each repository
 const Issues = ({repository}) => {
   return (
     // A link to the repository is displayed
@@ -102,6 +140,12 @@ const Issues = ({repository}) => {
                 <li key={comment.node.id}>
                   <p>{comment.node.body}</p>
                 </li>
+              ))}
+            </ul>
+            {/* Create an unordered list of reaction emoticons for each issue */}
+            <ul>
+              {issue.node.reactions.edges.map(reaction => (
+              <li key={reaction.node.id}>{reaction.node.content}</li>
               ))}
             </ul>
             {/* {console.log(issue.node.comments)} */}
@@ -132,20 +176,45 @@ const axiosGitHubGraphQL = axios.create({
   },
 });
 
-const getIssuesofRepository = path => {
+const getIssuesofRepository = (path, cursor) => {
   //The input path is split at the '/' and each half is saved into separate arrays
   const [organization, repository] = path.split('/');
   //The axios post request to github is passed the query and gql variables
   return axiosGitHubGraphQL.post('', {
     query: GET_ISSUES_OF_REPOSITORY,
-    variables: { organization, repository },
+    variables: { organization, repository, cursor },
     });
 };
 //This function returns an object containing the organization and errors data
-const resolveIssuesQuery = queryResult => () => ({
-  organization: queryResult.data.data.organization,
-  errors: queryResult.data.errors,
-});
+const resolveIssuesQuery = (queryResult, cursor) => state => {
+  const {data, errors} = queryResult.data;
+  console.log(queryResult);
+  if(!cursor) {
+    return {
+      organization: data.organization,
+      errors,
+    }
+  }
+
+  const {edges: oldIssues} = state.organization.repository.issues;
+  const {edges: newIssues} = data.organization.repository.issues;
+  const updatedIssues = [...oldIssues, ...newIssues];
+
+  return {
+    organization: {
+      ...data.organization,
+      repository: {
+        ...data.organization.repository,
+        issues: {
+          ...data.organization.repository.issues,
+          edges: updatedIssues,
+        },
+      },
+    },
+    errors,
+  };
+};
+
 //Main App component which handles rendering, lifecycle and user input.
 class App extends Component {
   state = {
@@ -169,12 +238,19 @@ class App extends Component {
     //prevent default submit button behavior
     event.preventDefault();
   };
-  onFetchFromGitHub = path => {
+  onFetchFromGitHub = (path, cursor)=> {
 
-    getIssuesofRepository(path).then(queryResult => 
-      this.setState(resolveIssuesQuery(queryResult)),  
+    getIssuesofRepository(path, cursor).then(queryResult => 
+      this.setState(resolveIssuesQuery(queryResult, cursor)),  
     );
   };
+  onFetchMoreIssues = () => {
+    const {
+      endCursor,
+    } = this.state.organization.repository.issues.pageInfo;
+
+    this.onFetchFromGitHub(this.state.path, endCursor)
+  }
   render() {
     const { path, organization, errors } = this.state;
 
@@ -198,7 +274,7 @@ class App extends Component {
 
         <hr />
         {organization ? (
-          <Organization organization={organization} errors = {errors} />
+          <Organization organization={organization} errors={errors} onFetchMoreIssues={this.onFetchMoreIssues} />
         ) : (
           <p>No Information Yet...</p>
         )}
