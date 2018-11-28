@@ -2,6 +2,7 @@
 
 import React, { Component } from 'react';
 import axios from 'axios';
+import Organization from './Components.jsx';
 
 const TITLE = 'React GraphQL GitHub Client';
 
@@ -14,7 +15,24 @@ const ADD_STAR = `
     }
   }
 `;
-
+const REMOVE_STAR = `
+  mutation($repositoryId: ID!) {
+    removeStar(input:{starrableId: $repositoryId}) {
+      starrable {
+        viewerHasStarred
+      }
+    }
+  }
+`;
+const ADD_REACTION = `
+mutation ($issueId: ID!){
+  addReaction(input:{subjectId: $issueId, content:HEART}) {
+    reaction {
+      content
+    }
+  }
+}
+`
 const GET_ISSUES_OF_REPOSITORY = `
   query ($organization: String!, $repository: String!, $cursor: String) {
     organization(login: $organization) {
@@ -128,12 +146,52 @@ const addStarToRepository = repositoryId => {
   });
 };
 
-const resolveAddStarMutation = (mutationResult) => (state) => {
- 
+//function that handles making the add star mutation post to the GH api
+const removeStarToRepository = repositoryId => {
+  return axiosGitHubGraphQL.post('', {
+    query: REMOVE_STAR,
+    variables: { repositoryId },
+  });
+};
+
+const addReactionToIssue = nodeId => {
+  console.log("reaction fired!" + nodeId);
+  return axiosGitHubGraphQL.post('', {
+    query: ADD_REACTION,
+    variables: { nodeId },
+  });
+}
+
+// const resolveAddReactionMutation = mutationResult => state => {
+//   //Save current viewHasStarred status to a variable
+//   const {
+//     content,
+//   } = mutationResult.data.data.addReaction.reaction;
+  
+  
+//   return {
+//     ...state,
+//       organization: {
+//         ...state.organization,
+//           repository: {
+//             ...state.organization.repository,
+//             issues {
+//               ...state.organization.issues,
+//             }
+//           }
+      
+//       }
+  
+// }
+
+const resolveAddStarMutation = mutationResult => state => {
+ //Save current viewHasStarred status to a variable
   const {
     viewerHasStarred,
-  } = this.mutationResult.data.data.addStar.starrable;
-
+  } = mutationResult.data.data.addStar.starrable;
+  //Create totalCount variable containing current # of stargazers
+  const { totalCount } = state.organization.repository.stargazers
+  
   return {
     ...state,
     organization: {
@@ -141,10 +199,37 @@ const resolveAddStarMutation = (mutationResult) => (state) => {
       repository: {
         ...state.organization.repository,
         viewerHasStarred,
+        stargazers: {
+          // total count is incremented +1 after starring and updated within the nested object structure
+          totalCount: totalCount + 1,
+        }
       },
     },
   }
 }
+const resolveRemoveStarMutation = mutationResult => state => {
+  //Save current viewHasStarred status to a variable
+   const {
+     viewerHasStarred,
+   } = mutationResult.data.data.removeStar.starrable;
+   //Create totalCount variable containing current # of stargazers
+   const { totalCount } = state.organization.repository.stargazers
+   
+   return {
+     ...state,
+     organization: {
+       ...state.organization,
+       repository: {
+         ...state.organization.repository,
+         viewerHasStarred,
+         stargazers: {
+           // total count is incremented +1 after starring and updated within the nested object structure
+           totalCount: totalCount - 1,
+         }
+       },
+     },
+   }
+ }
 
 //Main App component which handles rendering, lifecycle and user input.
 class App extends Component {
@@ -188,10 +273,21 @@ class App extends Component {
 
   //Method that calls the add star query post to the GH api
   onStarRepository = (repositoryId, viewerHasStarred) => {
-    addStarToRepository(repositoryId).then(mutationResult => {
-      this.setState(resolveAddStarMutation(mutationResult))
+    if(viewerHasStarred) {
+      removeStarToRepository(repositoryId).then(mutationResult => {
+        this.setState(resolveRemoveStarMutation(mutationResult))
+      });
     }
-    );
+    else {
+      addStarToRepository(repositoryId).then(mutationResult => {
+        this.setState(resolveAddStarMutation(mutationResult))
+      });
+    }
+    
+    
+  }
+  onReactionToIssue = issueId => {
+    addReactionToIssue(issueId)
   }
 
   render() {
@@ -224,7 +320,8 @@ class App extends Component {
             organization={organization} 
             errors={errors} 
             onFetchMoreIssues={this.onFetchMoreIssues} 
-            onStarRepository={this.onStarRepository}/>
+            onStarRepository={this.onStarRepository}
+            onReactionToIssue={this.onReactionToIssue}/>
         ) : (
           <p>No Information Yet...</p>
         )}
@@ -232,133 +329,5 @@ class App extends Component {
     );
   }
 }
-
-//Component that displays the errors if any or returns
-  //the organization name and url.  A repository component is also displayed
-  //note: the organization/errors arguments are objects and are destructured giving access to properties when passing into the component
-  const Organization = ({
-    organization,
-    errors,
-    onFetchMoreIssues,
-    onStarRepository,
-  }) => {
-    if (errors) {
-      return (
-        <p>
-          <strong>Something went wrong:</strong>
-          {errors.map(error => error.message).join(' ')}
-        </p>
-      )
-    }
-    return (
-    <div>
-      <p>
-        <strong>Organization: </strong>
-        <a href={organization.url}> {organization.name} </a>
-      </p>
-      <Repository 
-        repository={organization.repository} 
-        onFetchMoreIssues={onFetchMoreIssues} 
-        onStarRepository={onStarRepository} />
-    </div>
-    );
-  }
-   
-  
-  const Licenses = ({repository}) => {
-    //Display license info if available in the repository data object
-    if (repository.licenseInfo) {
-      return (
-        <div>
-            {/* Display license info and call Issues component */}
-            <strong> Licenses:</strong> 
-            <p>{repository.licenseInfo.name}</p>
-            <p>{repository.licenseInfo.description}</p>
-            <strong>Issues from Organization: </strong>
-            <Issues repository = {repository} />
-        </div>
-      )
-    }
-    if (repository)
-    return (
-      <div>
-        <strong>Issues from Organization: </strong>
-        <Issues repository = {repository} />
-      </div>
-      
-    )
-  }
-  
-  //Displays the repository name and a link to the repository
-  const Repository = ({
-    repository,
-    onFetchMoreIssues,
-    onStarRepository,
-  }) => (
-    <div>
-      <button 
-        type="button" 
-        onClick={() => onStarRepository(repository.id, repository.viewerHasStarred)}>
-        {repository.viewerHasStarred ? "Unstar" : "Star"}
-      </button>
-      <Licenses repository={repository}/>
-      <hr />
-      {/* If the repository hasNextPage flag is set to true display the 
-        fetch more issues button */}
-      {repository.issues.pageInfo.hasNextPage && (
-        <button onClick={onFetchMoreIssues}>More</button>
-      )}
-      
-    </div>
-  )
-
-  //A component to display the issues within each repository
-  const Issues = ({repository}) => {
-    return (
-      // A link to the repository is displayed
-      <div>
-        <p>
-          <strong> In Repository:</strong>  
-          <a href={repository.url} > {repository.name} </a>
-        </p>
-      {/* each of the first five issues in the repo are mapped as list elements */}
-        <ul>
-          {repository.issues.edges.map((issue) => (
-            <li key={issue.node.id}>  
-              {/* links containing the issue title and url are displayed */}
-              <a href={issue.node.url}>{issue.node.title}</a>
-              <HasComment comment={issue.node.comments} />
-              <ul>
-                {/* For each issue map through the first 5 comments */}
-                {issue.node.comments.edges.map((comment) => (
-                  // Display each comment body as a list element
-                  <li key={comment.node.id}>
-                    <p>{comment.node.body}</p>
-                  </li>
-                ))}
-              </ul>
-              {/* Create an unordered list of reaction emoticons for each issue */}
-              <ul>
-                {issue.node.reactions.edges.map(reaction => (
-                <li key={reaction.node.id}>{reaction.node.content}</li>
-                ))}
-              </ul>
-              {/* {console.log(issue.node.comments)} */}
-            </li>
-        ))}
-        </ul> 
-      </div>
-    )
-  }
-
-  //This component checks if there are comments available
-  const HasComment = ({comment}) => {
-    //If there are comments display a comment message
-    return !comment.edges.length == 0 
-      ? ( <div>
-          <strong>Comments:</strong>  
-        </div> )
-      : null; 
-  };
 
 export default App;
