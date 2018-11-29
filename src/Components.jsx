@@ -98,7 +98,7 @@ return (
     <ul>
         {repository.issues.edges.map((issue) => (
         <li key={issue.node.id}> 
-            {console.log(issue.node.id)}
+            
             <button onClick={() => onReactionToIssue(issue.node.id)}>
                 Add Heart to Issue
             </button> 
@@ -119,6 +119,7 @@ return (
     <ul>
     {/* For each issue map through the first 5 comments */}
     {issue.node.comments.edges.map((comment) => (
+        
         // Display each comment body as a list element
         <li key={comment.node.id}>
         <p>{comment.node.body}</p>

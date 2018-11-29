@@ -24,9 +24,10 @@ const REMOVE_STAR = `
     }
   }
 `;
+
 const ADD_REACTION = `
-mutation ($issueId: ID!){
-  addReaction(input:{subjectId: $issueId, content:HEART}) {
+mutation($issueId: ID!){
+  addReaction(input:{subjectId:$issueId, content:HEART}) {
     reaction {
       content
     }
@@ -56,7 +57,11 @@ const GET_ISSUES_OF_REPOSITORY = `
               id
               title
               url
-              reactions(last: 3) {
+              reactionGroups{
+                viewerHasReacted
+              }
+              reactions(last: 5) {
+                
                 edges {
                   node {
                     id
@@ -105,7 +110,7 @@ const getIssuesofRepository = (path, cursor) => {
   return axiosGitHubGraphQL.post('', {
     query: GET_ISSUES_OF_REPOSITORY,
     variables: { organization, repository, cursor },
-    });
+    })
 };
 //This function returns an object containing the organization and errors data as well as handling issue merging after pagination.
 const resolveIssuesQuery = (queryResult, cursor) => state => {
@@ -154,12 +159,13 @@ const removeStarToRepository = repositoryId => {
   });
 };
 
-const addReactionToIssue = nodeId => {
-  console.log("reaction fired!" + nodeId);
+const addReactionToIssue = issueId => {
+  
+  console.log(issueId);
   return axiosGitHubGraphQL.post('', {
     query: ADD_REACTION,
-    variables: { nodeId },
-  });
+    variables: { issueId },
+  })
 }
 
 // const resolveAddReactionMutation = mutationResult => state => {
@@ -287,7 +293,9 @@ class App extends Component {
     
   }
   onReactionToIssue = issueId => {
-    addReactionToIssue(issueId)
+    addReactionToIssue(issueId).then(result => {
+      console.log(result);
+    })
   }
 
   render() {
