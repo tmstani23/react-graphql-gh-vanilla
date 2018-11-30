@@ -1,4 +1,4 @@
-Destructuring: Extract object properties into a new variable object.
+Destructuring:
     This is called a "destructuring". Actually, you're passing an object as an argument to the function, but the destructuring uses only the named properties of the object.
 
     const destructuring = ({ used }) => console.log(used);
@@ -9,23 +9,3 @@ Destructuring: Extract object properties into a new variable object.
     };
 
     destructuring(properties); // 2
-
-    const {
-        used,
-    } = properties;
-
-    console.log(used) // 2
-
-    const properties = {
-        unused: 1,
-        used: {
-            peopleUsed: 12,
-        },
-    };
-    const {
-        used,
-    } = properties;
-
-console.log(used) 
-// returns: 
-//{peopleUsed": 12}
