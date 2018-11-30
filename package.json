@@ -2,8 +2,10 @@
   "name": "react-graphql-gh-vanilla",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https:tmstani23@github.io/react",
   "dependencies": {
     "axios": "^0.18.0",
+    "gh-pages": "^2.0.1",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "react-scripts": "2.1.1"
