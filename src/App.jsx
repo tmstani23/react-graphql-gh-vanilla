@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import axios from 'axios';
-import Organization from './components.jsx';
+import Organization, {Loading} from './components.jsx';
 
 const TITLE = 'React GraphQL GitHub Client';
 
@@ -32,6 +32,16 @@ mutation($issueId: ID!){
   }
 }
 `
+const REMOVE_REACTION = `
+mutation($issueId: ID!){
+  removeReaction(input:{subjectId:$issueId, content:HEART}) {
+    reaction {
+      content
+    }
+  }
+}
+`
+
 const GET_ISSUES_OF_REPOSITORY = `
   query ($organization: String!, $repository: String!, $cursor: String) {
     organization(login: $organization) {
@@ -55,20 +65,20 @@ const GET_ISSUES_OF_REPOSITORY = `
               id
               title
               url
-              reactions(last: 5) {
-                
-                edges {
-                  node {
-                    id
-                    content
-                  }
-                }
-              }
+              
               comments(last: 5) {
                 edges {
                   node {
                     id
                     body
+                    reactions(first: 5) {
+                      edges {
+                        node {
+                          id
+                          content
+                        }
+                      }
+                    }
                     reactionGroups{
                       viewerHasReacted
                     }
@@ -110,37 +120,7 @@ const getIssuesofRepository = (path, cursor) => {
     variables: { organization, repository, cursor },
     })
 };
-//This function returns an object containing the organization and errors data as well as handling issue merging after pagination.
-const resolveIssuesQuery = (queryResult, cursor) => state => {
-  const {data, errors} = queryResult.data;
-  //If there is no cursor(more issue button hasn't been clicked yet) return the organization data.
-  if(!cursor) {
-    return {
-      organization: data.organization,
-      errors,
-    }
-  }
-  //Create three variables containing the current state issue data, new issue data(that coming after the cursor), and an array containing both.
-  const {edges: oldIssues} = state.organization.repository.issues;
-  const {edges: newIssues} = data.organization.repository.issues;
-  const updatedIssues = [...oldIssues, ...newIssues];
-  //Return a nested object containing the current organization, repo and issue data.
-    //The issues edges are where to parse from all issue data and is passed the updated issue range
-    //This object is used to update the respective state within the App component.
-  return {
-    organization: {
-      ...data.organization,
-      repository: {
-        ...data.organization.repository,
-        issues: {
-          ...data.organization.repository.issues,
-          edges: updatedIssues,
-        },
-      },
-    },
-    errors,
-  };
-};
+
 //function that handles making the add star mutation post to the GH api
 const addStarToRepository = repositoryId => {
   return axiosGitHubGraphQL.post('', {
@@ -159,34 +139,20 @@ const removeStarToRepository = repositoryId => {
 
 const addReactionToIssue = issueId => {
   
-  console.log(issueId);
   return axiosGitHubGraphQL.post('', {
     query: ADD_REACTION,
     variables: { issueId },
   })
 }
 
-// const resolveAddReactionMutation = mutationResult => state => {
-//   //Save current viewHasStarred status to a variable
-//   const {
-//     content,
-//   } = mutationResult.data.data.addReaction.reaction;
+const removeReactionToIssue = issueId => {
   
-  
-//   return {
-//     ...state,
-//       organization: {
-//         ...state.organization,
-//           repository: {
-//             ...state.organization.repository,
-//             issues {
-//               ...state.organization.issues,
-//             }
-//           }
-      
-//       }
-  
-// }
+  return axiosGitHubGraphQL.post('', {
+    query: REMOVE_REACTION,
+    variables: { issueId },
+  })
+}
+
 
 const resolveAddStarMutation = mutationResult => state => {
  //Save current viewHasStarred status to a variable
@@ -235,12 +201,45 @@ const resolveRemoveStarMutation = mutationResult => state => {
    }
  }
 
+ //This function returns an object containing the organization and errors data as well as handling issue merging after pagination.
+const resolveIssuesQuery = (queryResult, cursor) => state => {
+  const {data, errors} = queryResult.data;
+  //If there is no cursor(more issue button hasn't been clicked yet) return the organization data.
+  if(!cursor) {
+    return {
+      organization: data.organization,
+      errors,
+    }
+  }
+  //Create three variables containing the current state issue data, new issue data(that coming after the cursor), and an array containing both.
+  const {edges: oldIssues} = state.organization.repository.issues;
+  const {edges: newIssues} = data.organization.repository.issues;
+  const updatedIssues = [...oldIssues, ...newIssues];
+  //Return a nested object containing the current organization, repo and issue data.
+    //The issues edges are where to parse from all issue data and is passed the updated issue range
+    //This object is used to update the respective state within the App component.
+  return {
+    organization: {
+      ...data.organization,
+      repository: {
+        ...data.organization.repository,
+        issues: {
+          ...data.organization.repository.issues,
+          edges: updatedIssues,
+        },
+      },
+    },
+    errors,
+  };
+};
+
 //Main App component which handles rendering, lifecycle and user input.
 class App extends Component {
   state = {
     path: 'the-road-to-learn-react/the-road-to-learn-react',
     organization: null,
-    errors: null
+    errors: null,
+    loading: true
   };
   //Call the fetch method using the input field as a path
     //once the component mounts.
@@ -290,10 +289,10 @@ class App extends Component {
     
     
   }
-  onReactionToIssue = issueId => {
-    addReactionToIssue(issueId).then(result => {
-      //console.log(result);
-    })
+  onReactionToIssue = (issueId, viewerHasReacted) => {
+    viewerHasReacted 
+    ? removeReactionToIssue(issueId).then(this.onFetchFromGitHub(this.state.path))
+    : addReactionToIssue(issueId).then(this.onFetchFromGitHub(this.state.path))  
   }
 
   render() {
@@ -329,7 +328,7 @@ class App extends Component {
             onStarRepository={this.onStarRepository}
             onReactionToIssue={this.onReactionToIssue}/>
         ) : (
-          <p>No Information Yet...</p>
+          <Loading />
         )}
       </div>
     );

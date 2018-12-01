@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 
+
 //Component that displays the errors if any or returns
 //the organization name and url.  A repository component is also displayed
 //note: the organization/errors arguments are objects and are destructured giving access to properties when passing into the component
@@ -32,6 +33,32 @@ return (
 </div>
 );
 }
+
+export class Loading extends Component {
+    state = {
+        text: 'Loading'
+    }
+        
+        componentDidMount() {
+            const stopper = this.state.text + '...';
+            this.interval = window.setInterval(() => {
+            this.state.text === stopper
+                ? this.setState(() => ({ text: 'Loading' }))
+                : this.setState((prevState) => ({ text: prevState.text + '.' }))
+            }, 300)
+        }
+        componentWillUnmount() {
+            window.clearInterval(this.interval);
+        }
+        render() {
+            return (
+            <p className = "loading-p">
+                {this.state.text}
+            </p>
+            )
+        }
+}  
+
 
 const Licenses = ({repository, onReactionToIssue}) => {
 //Display license info if available in the repository data object
@@ -66,16 +93,17 @@ onReactionToIssue,
 }) => (
 <div>
     
+    <button 
+        type="button" 
+        onClick={() => onStarRepository(repository.id, repository.viewerHasStarred)
+        }
+    >
+        {repository.viewerHasStarred ? "Unstar Repository" : "Star Repository"}
+    </button>
+    <p>{repository.stargazers.totalCount} Stars</p>
     <Licenses repository={repository} onReactionToIssue={onReactionToIssue}/>
     <hr />
-    <button 
-    type="button" 
-    onClick={() => onStarRepository(repository.id, repository.viewerHasStarred)
-    }
-    >
-    {repository.stargazers.totalCount}
-    {repository.viewerHasStarred ? "Unstar" : "Star"}
-    </button>
+    
     {/* If the repository hasNextPage flag is set to true display the 
     fetch more issues button */}
     {repository.issues.pageInfo.hasNextPage && (
@@ -105,7 +133,7 @@ return (
             <a href={issue.node.url}>{issue.node.title}</a>
             <HasComment comment={issue.node.comments} />
             <CommentItem issue={issue} onReactionToIssue = {onReactionToIssue}/>
-            <ReactionItem issue={issue}/>
+            
             {/* {console.log(issue.node.comments)} */}
         </li>
         ))}
@@ -130,13 +158,15 @@ return (
     {issue.node.comments.edges.map((comment) => (
         
         <div key ={comment.node.id}>
-            <button onClick={() => onReactionToIssue(comment.node.id)}>
-            {hasReaction(comment.node.reactionGroups) ? "Heart Added to Comment" : "Add Heart to Issue"}
-            </button> 
+            
             {/* Display each comment body as a list element */}
             <li>
             <p>{comment.node.body}</p>
             </li>
+            <ReactionItem comment={comment}/>
+            <button onClick={() => onReactionToIssue(comment.node.id, hasReaction(comment.node.reactionGroups))}>
+                {hasReaction(comment.node.reactionGroups) ? "Remove Heart From Comment" : "Add Heart to Comment"}
+            </button> 
         </div>
         
         
@@ -144,14 +174,15 @@ return (
     </ul>
 )
 }
-const ReactionItem = ({issue}) => {
+const ReactionItem = ({comment}) => {
 return (
     //Create an unordered list of reaction emoticons for each issue
     <div>
     <ul>
-        {issue.node.reactions.edges.map(reaction => (
+        {comment.node.reactions.edges.map(reaction => (
         <li key={reaction.node.id}>{reaction.node.content}</li>
         ))}
+        
     </ul>
     </div>
 )
