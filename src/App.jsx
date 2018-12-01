@@ -55,9 +55,6 @@ const GET_ISSUES_OF_REPOSITORY = `
               id
               title
               url
-              reactionGroups{
-                viewerHasReacted
-              }
               reactions(last: 5) {
                 
                 edges {
@@ -72,6 +69,9 @@ const GET_ISSUES_OF_REPOSITORY = `
                   node {
                     id
                     body
+                    reactionGroups{
+                      viewerHasReacted
+                    }
                   }
                 }
               }
@@ -292,7 +292,7 @@ class App extends Component {
   }
   onReactionToIssue = issueId => {
     addReactionToIssue(issueId).then(result => {
-      console.log(result);
+      //console.log(result);
     })
   }
 

@@ -98,14 +98,13 @@ return (
     <ul>
         {repository.issues.edges.map((issue) => (
         <li key={issue.node.id}> 
+            {/* {console.log(issue.node.reactionGroups)} */}
             
-            <button onClick={() => onReactionToIssue(issue.node.id)}>
-                Add Heart to Issue
-            </button> 
+            
             {/* links containing the issue title and url are displayed */}
             <a href={issue.node.url}>{issue.node.title}</a>
             <HasComment comment={issue.node.comments} />
-            <CommentItem issue={issue}/>
+            <CommentItem issue={issue} onReactionToIssue = {onReactionToIssue}/>
             <ReactionItem issue={issue}/>
             {/* {console.log(issue.node.comments)} */}
         </li>
@@ -114,16 +113,32 @@ return (
     </div>
 )
 }
-const CommentItem = ({issue}) => {
+const hasReaction = (reaction) => {
+    let reactedTrue = false;
+    const reactions = reaction.map((hasReacted) => {
+        if (hasReacted.viewerHasReacted) {
+            return reactedTrue = true;
+        }
+        
+    })
+    return reactedTrue;  
+}
+const CommentItem = ({issue, onReactionToIssue}) => {
 return (
     <ul>
     {/* For each issue map through the first 5 comments */}
     {issue.node.comments.edges.map((comment) => (
         
-        // Display each comment body as a list element
-        <li key={comment.node.id}>
-        <p>{comment.node.body}</p>
-        </li>
+        <div key ={comment.node.id}>
+            <button onClick={() => onReactionToIssue(comment.node.id)}>
+            {hasReaction(comment.node.reactionGroups) ? "Heart Added to Comment" : "Add Heart to Issue"}
+            </button> 
+            {/* Display each comment body as a list element */}
+            <li>
+            <p>{comment.node.body}</p>
+            </li>
+        </div>
+        
         
     ))}
     </ul>
