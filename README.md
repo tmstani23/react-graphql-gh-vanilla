@@ -11,5 +11,6 @@ The repo star count is displayed.  Users can star the repository and add heart e
 This project leverages React for the display and interaction between front and back end.  Axios is used for making get and post requests to the Github API.  GraphQL is used for handling data queries and specifying exactly which data is required.  
 
 ##Screenshots:
+https://github.com/tmstani23/react-graphql-gh-vanilla/blob/master/img/ss1.png?raw=true
 
-
+https://github.com/tmstani23/react-graphql-gh-vanilla/blob/master/img/ss2.png?raw=true
