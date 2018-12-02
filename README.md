@@ -13,4 +13,5 @@ This project leverages React for the display and interaction between front and b
 ##Screenshots:
 ![Alt text](https://raw.githubusercontent.com/tmstani23/react-graphql-gh-vanilla/master/img/ss1.png)
 
+
 ![Alt text](https://raw.githubusercontent.com/tmstani23/react-graphql-gh-vanilla/master/img/ss2.png)
