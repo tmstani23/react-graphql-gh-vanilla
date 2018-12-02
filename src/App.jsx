@@ -4,6 +4,7 @@ import Organization, {Loading} from './components.jsx';
 
 const TITLE = 'React GraphQL GitHub Client';
 
+//Graph QL mutations used for updating the github api
 const ADD_STAR = `
   mutation($repositoryId: ID!) {
     addStar(input:{starrableId: $repositoryId}) {
@@ -24,8 +25,8 @@ const REMOVE_STAR = `
 `;
 
 const ADD_REACTION = `
-mutation($issueId: ID!){
-  addReaction(input:{subjectId:$issueId, content:HEART}) {
+mutation($commentId: ID!){
+  addReaction(input:{subjectId:$commentId, content:HEART}) {
     reaction {
       content
     }
@@ -33,15 +34,15 @@ mutation($issueId: ID!){
 }
 `
 const REMOVE_REACTION = `
-mutation($issueId: ID!){
-  removeReaction(input:{subjectId:$issueId, content:HEART}) {
+mutation($commentId: ID!){
+  removeReaction(input:{subjectId:$commentId, content:HEART}) {
     reaction {
       content
     }
   }
 }
 `
-
+//The GQL query used for specifying which data do get from the Github api
 const GET_ISSUES_OF_REPOSITORY = `
   query ($organization: String!, $repository: String!, $cursor: String) {
     organization(login: $organization) {
@@ -136,20 +137,18 @@ const removeStarToRepository = repositoryId => {
     variables: { repositoryId },
   });
 };
-
-const addReactionToIssue = issueId => {
-  
+//Function that handles adding a reaction to the github api using the comment node id
+const addReactionToIssue = commentId => {
   return axiosGitHubGraphQL.post('', {
     query: ADD_REACTION,
-    variables: { issueId },
+    variables: { commentId },
   })
 }
-
-const removeReactionToIssue = issueId => {
-  
+//Function that handles adding a reaction to the github api using the comment node id
+const removeReactionToIssue = commentId => {
   return axiosGitHubGraphQL.post('', {
     query: REMOVE_REACTION,
-    variables: { issueId },
+    variables: { commentId },
   })
 }
 
@@ -251,7 +250,7 @@ class App extends Component {
     this.setState({ path: event.target.value })
   };
   //When submit button is clicked call on fetchFromgithub component
-    //to start the data request change
+    //to start the data request chain
   onSubmit = event => {
     this.onFetchFromGitHub(this.state.path);
     //prevent default submit button behavior
@@ -277,7 +276,9 @@ class App extends Component {
   //Method that calls the add star query post to the GH api
   onStarRepository = (repositoryId, viewerHasStarred) => {
     if(viewerHasStarred) {
+      //Call the remove star mutation function then update the state with the result
       removeStarToRepository(repositoryId).then(mutationResult => {
+        //resolve function returns an updated state object(organization, repo, issue)
         this.setState(resolveRemoveStarMutation(mutationResult))
       });
     }
@@ -286,13 +287,18 @@ class App extends Component {
         this.setState(resolveAddStarMutation(mutationResult))
       });
     }
-    
-    
   }
-  onReactionToIssue = (issueId, viewerHasReacted) => {
+  //Function called when user clicks on the comment add reaction button
+  onReactionToIssue = (commentId, viewerHasReacted) => {
+    //If viewer already added a heart
     viewerHasReacted 
-    ? removeReactionToIssue(issueId).then(this.onFetchFromGitHub(this.state.path))
-    : addReactionToIssue(issueId).then(this.onFetchFromGitHub(this.state.path))  
+    //call remove reaction function chain then once the result is returned, 
+    //make a new query request to the api to update the state
+      //This is less optimal than creating an updated state object and using it to update state
+        //But there was too much nesting for the comment reactions and my brain couldn't handle.
+    ? removeReactionToIssue(commentId).then(this.onFetchFromGitHub(this.state.path))
+    //Else call add reaction function chain
+    : addReactionToIssue(commentId).then(this.onFetchFromGitHub(this.state.path))  
   }
 
   render() {
@@ -301,7 +307,7 @@ class App extends Component {
     return (
       <div className="App">
         <h1>{TITLE}</h1>
-
+        {/* create form element.  on submit method is called when form button is clicked */}
         <form onSubmit={this.onSubmit}>
           <label htmlFor="url">
             Show open issues for https://github.com
@@ -310,7 +316,9 @@ class App extends Component {
           <input
             id="url"
             type="text"
+            //Set state path variable to the input's value
             value={path}
+            //Update path state as user types into the input
             onChange={this.onChange}
             style={{ width: "300px" }}
           />
@@ -319,7 +327,8 @@ class App extends Component {
 
         <hr />
         {/* Once data is returned display the Organization component with the returned data. 
-          onFetchmoreIssues (cursor location and page info) is passed to the component for use down the chain*/}
+          onFetchmoreIssues (cursor location and page info) is passed to the component for use down the chain
+          App methods are passed into child components for use.*/}
         {organization ? (
           <Organization 
             organization={organization} 
@@ -328,6 +337,7 @@ class App extends Component {
             onStarRepository={this.onStarRepository}
             onReactionToIssue={this.onReactionToIssue}/>
         ) : (
+          //Loading component displays loading message when waiting for data to return
           <Loading />
         )}
       </div>
